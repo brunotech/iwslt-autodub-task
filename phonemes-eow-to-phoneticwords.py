@@ -22,29 +22,23 @@ path = "./"
 with open(os.path.join(path, file)) as f:
     lines = f.readlines()
     sentences = []
-    for i, line in enumerate(lines):
+    for line in lines:
         phonetic_words = []
         phones = line.split('<eow>')
         for phone in phones:
             if phone != '\n':
                 # if we don't have durations comment out next line
-                if sys.argv[2] == 'durations':
-                    phone = phone.split()[::2]
-                else:
-                    phone = phone.split()
-                cleaned_phones = []
-                for item in phone:
-                    if item != 'sp':
-                        cleaned_phones.append(item)
+                phone = phone.split()[::2] if sys.argv[2] == 'durations' else phone.split()
+                cleaned_phones = [item for item in phone if item != 'sp']
                 phonetic_word = "-".join(cleaned_phones)
                 phonetic_words.append(phonetic_word)
 
         sentences.append(" ".join(phonetic_words))
 
 
-with open(os.path.join(path, file + '.phoneticwords'), 'w') as f:
+with open(os.path.join(path, f'{file}.phoneticwords'), 'w') as f:
     for sentence in sentences:
-        f.write('{}\n'.format(sentence))
+        f.write(f'{sentence}\n')
 
 
 

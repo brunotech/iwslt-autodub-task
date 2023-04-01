@@ -33,7 +33,7 @@ def get_sorted_audio_files(data_dir):
     """
     files = [f for f in os.listdir(data_dir) if f.endswith('.wav')]
     files = sorted(files, key=lambda f: int(f.split('.')[-2]))
-    return [os.path.join(args.data_dir, "subset" + args.subset, f) for f in files]
+    return [os.path.join(args.data_dir, f"subset{args.subset}", f) for f in files]
 
 
 class SileroVad:
@@ -60,14 +60,11 @@ class SileroVad:
         pauses = []
         if len(speech_timestamps) > 1:
             for i, pair in enumerate(speech_timestamps):
-                if i == 0:
-                    previous_start, previous_end = pair["start"], pair["end"]
-                else:
+                if i != 0:
                     current_start, current_end = pair["start"], pair["end"]
                     pause = current_start - previous_end
                     pauses.append(round(pause, 3))
-                    previous_start, previous_end = pair["start"], pair["end"]
-
+                previous_start, previous_end = pair["start"], pair["end"]
         return speech_timestamps, pauses
 
 
@@ -147,12 +144,12 @@ if __name__ == '__main__':
                         help="Path to durations_freq_all.pkl")
     parser.add_argument("--output-video-dir", type=str,
                         help="Directory to write final dubbed videos (and audio).")
-                
+
     args = parser.parse_args()
 
     # Default source text is `subsetX.de`
     if args.source_text is None:
-        args.source_text = os.path.join(args.data_dir, "subset" + args.subset + '.de')
+        args.source_text = os.path.join(args.data_dir, f"subset{args.subset}.de")
 
     # Do not change: These directories are fixed for FastSpeech2 trained on LJSpeech data
     output_dir = os.path.join(args.fastspeech_dir, 'output', 'result', 'LJSpeech')
@@ -160,11 +157,15 @@ if __name__ == '__main__':
 
     # Default directory is a subdirectory of the input audio directory called `dubbed`
     if args.output_video_dir is None:
-        args.output_video_dir = os.path.join(args.data_dir, "subset" + args.subset, 'dubbed')
+        args.output_video_dir = os.path.join(
+            args.data_dir, f"subset{args.subset}", 'dubbed'
+        )
     os.makedirs(args.output_video_dir, exist_ok=True)
 
     # Get audio files and lines of text - aligned with each other
-    audio_files = get_sorted_audio_files(os.path.join(args.data_dir, "subset" + args.subset))
+    audio_files = get_sorted_audio_files(
+        os.path.join(args.data_dir, f"subset{args.subset}")
+    )
     with open(args.source_text) as f_src:
         src_text = f_src.readlines()
     assert len(audio_files) == len(src_text), "Number of audio files and number of lines in source text did not match."
@@ -184,17 +185,19 @@ if __name__ == '__main__':
     speech_timestamps = []
     pauses = []
     hyp_segments = []
-    logging.info(f"Generating translated phoneme and duration outputs")
-    with open(os.path.join(output_dir, 'subset' + args.subset + '.en.output'), 'w') as f_out, \
-         open(os.path.join(output_dir, 'subset' + args.subset + '.en.fs2_inp'), 'w') as f_fs2_inp:
+    logging.info("Generating translated phoneme and duration outputs")
+    with (open(os.path.join(output_dir, f'subset{args.subset}.en.output'), 'w') as f_out, open(os.path.join(output_dir, f'subset{args.subset}.en.fs2_inp'), 'w') as f_fs2_inp):
         for idx, audio_file in tqdm(enumerate(audio_files)):
-            duration_frames = []
             vad = silero_vad.get_timestamps(audio_file)
             speech_timestamps.append(vad[0])
             pauses.append(vad[1])
-            for timestamp in speech_timestamps[idx]:
-                duration_frames.append(int(np.round(timestamp["end"] * SAMPLING_RATE / HOP_LENGTH) - np.round(timestamp["start"] * SAMPLING_RATE / HOP_LENGTH)))
-
+            duration_frames = [
+                int(
+                    np.round(timestamp["end"] * SAMPLING_RATE / HOP_LENGTH)
+                    - np.round(timestamp["start"] * SAMPLING_RATE / HOP_LENGTH)
+                )
+                for timestamp in speech_timestamps[idx]
+            ]
             # BPE each segment and append segment durations bins
             bins = bin_instance.find_bin(speech_durations=duration_frames)
             sentence_segments = src_text[idx].split('[pause]')
@@ -217,19 +220,26 @@ if __name__ == '__main__':
                 f_fs2_inp.write(' '.join([t.split(FACTOR_DELIMITER)[0] for t in hyp_segment.split()]))
                 f_fs2_inp.write('}|\n')
                 # Save durations to file for FastSpeech2 to read
-                np.save(os.path.join(durations_dir, "LJSpeech-duration-" + seg_fs2_id + '.npy'),
-                        np.array([int(t.split(FACTOR_DELIMITER)[1]) for t in hyp_segment.split()]))
+                np.save(
+                    os.path.join(
+                        durations_dir, f"LJSpeech-duration-{seg_fs2_id}.npy"
+                    ),
+                    np.array(
+                        [
+                            int(t.split(FACTOR_DELIMITER)[1])
+                            for t in hyp_segment.split()
+                        ]
+                    ),
+                )
                 continue
 
     # FastSpeech2 doesn't work unless you're in the right directory due to relative paths in their configs.
     os.chdir(args.fastspeech_dir)
     logging.info("Running FastSpeech2 on phoneme and duration outputs")
-    check_call(f"`dirname ${{CONDA_PREFIX}}`/fastspeech2/bin/python {os.path.join(args.fastspeech_dir, 'synthesize.py')} --mode batch "
-               f"--source {os.path.join(output_dir, 'subset' + args.subset + '.en.fs2_inp')} --restore_step 900000 "
-               f"-p {os.path.join(args.fastspeech_dir, 'config/LJSpeech/preprocess.yaml')} "
-               f"-m {os.path.join(args.fastspeech_dir, 'config/LJSpeech/model.yaml')} "
-               f"-t {os.path.join(args.fastspeech_dir, 'config/LJSpeech/train.yaml')} >/dev/null",
-               shell=True)
+    check_call(
+        f"`dirname ${{CONDA_PREFIX}}`/fastspeech2/bin/python {os.path.join(args.fastspeech_dir, 'synthesize.py')} --mode batch --source {os.path.join(output_dir, f'subset{args.subset}.en.fs2_inp')} --restore_step 900000 -p {os.path.join(args.fastspeech_dir, 'config/LJSpeech/preprocess.yaml')} -m {os.path.join(args.fastspeech_dir, 'config/LJSpeech/model.yaml')} -t {os.path.join(args.fastspeech_dir, 'config/LJSpeech/train.yaml')} >/dev/null",
+        shell=True,
+    )
 
     logging.info("Reconstructing final audio segments")
     # Re-construct audio from the pieces and add pauses
@@ -238,16 +248,17 @@ if __name__ == '__main__':
         num_pauses_hyp = len(hyp_segments[idx]) - 1
 
         # Add silence in the beginning (if VAD detected speech after 0.0s in the beginning of the video)
-        if speech_timestamps[idx][0]['start'] > 0.0:
-            pauses_start = speech_timestamps[idx][0]['start']
-        else:
-            pauses_start = 0.0
+        pauses_start = max(speech_timestamps[idx][0]['start'], 0.0)
         audio = [AudioSegment.silent(duration=pauses_start * 1000)]
 
         for seg_idx, hyp_segment in enumerate(hyp_segments[idx]):
             # Join audio segments, adding pauses if needed
             seg_fs2_id = f"subset{args.subset}-{idx+1}-{seg_idx+1}"
-            audio.append(AudioSegment.from_file(os.path.join(output_dir, seg_fs2_id + '.wav'), format="wav"))
+            audio.append(
+                AudioSegment.from_file(
+                    os.path.join(output_dir, f'{seg_fs2_id}.wav'), format="wav"
+                )
+            )
             if seg_idx < num_pauses_hyp and seg_idx < len(pauses[idx]):
                 pause_mseconds = pauses[idx][seg_idx] * 1000
                 audio.append(AudioSegment.silent(duration=pause_mseconds))

@@ -25,30 +25,25 @@ class Bin:
     def __init__(self, durations_freq, n=200):
         list_durations = []
         for key in durations_freq.keys():
-            for _ in range(durations_freq[key]):
-                list_durations.append(key)
+            list_durations.extend(key for _ in range(durations_freq[key]))
         durations = numpy.array(list_durations)
-        bins = stats.mstats.mquantiles(durations, [i/n for i in range(0, n + 1)])
+        bins = stats.mstats.mquantiles(durations, [i/n for i in range(n + 1)])
         self.bins = numpy.array(bins)
 
     def find_bin(self, speech_durations, plot=False):
-        assigned_bins = []
-
         if plot:
             plt.ylabel("# times this duration is observed in our data")
             plt.xlabel("Durations")
             plt.hist(speech_durations, self.bins, edgecolor="k")
             plt.show()
         ind_bins = numpy.digitize(speech_durations, self.bins)
-        for ind in ind_bins:
-            assigned_bins.append('<bin{}>'.format(ind))
-        return assigned_bins
+        return [f'<bin{ind}>' for ind in ind_bins]
 
 
 def load_tsv(path):
     dict_audio = {}
-    for i, split in enumerate(["train", "dev", "test"]):
-        with open(os.path.join(path, "covost_v2.en_de.{}.tsv".format(split))) as f:
+    for split in ["train", "dev", "test"]:
+        with open(os.path.join(path, f"covost_v2.en_de.{split}.tsv")) as f:
             lines = f.readlines()
             dict_audio[split] = {}
             for line in lines:
@@ -73,18 +68,17 @@ def get_speech_durations(tier, duration_freq=None, count_jsons_with_silences=0, 
     text = []
     counter_dur = 0
     durations_list = []
-    for i, k in enumerate(tier['tiers']['words']['entries']):
+    for k in tier['tiers']['words']['entries']:
         s, e, p = k[0], k[1], k[2]
         end_of_word_sec.append(e)
         if return_text:
             text.append(p)
 
-    for i, k in enumerate(tier['tiers']['phones']['entries']):
+    for k in tier['tiers']['phones']['entries']:
         s, e, p = k[0], k[1], k[2]
         # Trim leading silences
-        if phones == []:
-            if p in sil_phones:
-                continue
+        if not phones and p in sil_phones:
+            continue
 
         phone_duration = (int(np.round(e * sampling_rate / hop_length) - np.round(s * sampling_rate / hop_length)))
 
@@ -112,7 +106,7 @@ def get_speech_durations(tier, duration_freq=None, count_jsons_with_silences=0, 
     if counter_dur != 0:
         durations_list.append(counter_dur)
     # trim trailing silences
-    for i in range(5):
+    for _ in range(5):
         if phones[-1] == '[pause]' and return_durations:
             pause_durations = pause_durations[:-1]
         if phones[-1] in ['[pause]', 'sp']:

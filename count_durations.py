@@ -44,10 +44,8 @@ with open(os.path.join(path, ref)) as f:
         counter_line = []
 
         for segment in line_segments:
-            counter_segment = 0
             durations = segment.split()[1:][::2]
-            for dur in durations:
-                counter_segment += int(dur)
+            counter_segment = sum(int(dur) for dur in durations)
             counter_line.append(counter_segment)
         durations_ref.append(counter_line)
 
@@ -69,7 +67,7 @@ with open(os.path.join(path, hyp)) as f:
                         # pdb.set_trace()
                     except:
                         print(segments)
-                        print("Duration is {} for line {}".format(seg, i))
+                        print(f"Duration is {seg} for line {i}")
                         num += 1
                 num += 1
 
@@ -92,45 +90,41 @@ threshold_in_frames = int(0.3 * sampling_rate/hop_length)
 
 for i in range(len(durations_ref)):
     # if len(durations_ref[i]) > 0:
-        one_pause_or_more +=1
-        if len(durations_ref[i]) == len(durations_hyp[i]):
-            for j in range(len(durations_ref[i])):
-                if durations_ref[i][j] == 0:
-                    temp = 1
-                else:
-                    temp = durations_ref[i][j]
-                abs_diff = abs(durations_hyp[i][j] - temp)
-                errors.append(abs_diff/temp)
-                if durations_hyp[i][j] < temp:
-                    scores.append(durations_hyp[i][j]/temp)
-                else:
-                    scores.append(temp/durations_hyp[i][j])
-                differences.append(abs_diff)
-                if abs_diff >= threshold_in_frames:
-                    large_dif += 1
-                else:
-                    small_dif += 1
-            count_right += 1
-        else:
-            count += 1
-            for j in range(len(durations_ref[i])):
-                if durations_ref[i][j] == 0:
-                    temp = 1
-                else:
-                    temp = durations_ref[i][j]
-                abs_diff = abs(0 - temp)
-                errors.append(abs_diff/temp)
-                scores.append(0.0)
-                differences.append(threshold_in_frames + 10)
+    one_pause_or_more +=1
+    if len(durations_ref[i]) == len(durations_hyp[i]):
+        for j in range(len(durations_ref[i])):
+            temp = 1 if durations_ref[i][j] == 0 else durations_ref[i][j]
+            abs_diff = abs(durations_hyp[i][j] - temp)
+            errors.append(abs_diff/temp)
+            if durations_hyp[i][j] < temp:
+                scores.append(durations_hyp[i][j]/temp)
+            else:
+                scores.append(temp/durations_hyp[i][j])
+            differences.append(abs_diff)
+            if abs_diff >= threshold_in_frames:
                 large_dif += 1
+            else:
+                small_dif += 1
+        count_right += 1
+    else:
+        count += 1
+        for j in range(len(durations_ref[i])):
+            temp = 1 if durations_ref[i][j] == 0 else durations_ref[i][j]
+            abs_diff = abs(0 - temp)
+            errors.append(abs_diff/temp)
+            scores.append(0.0)
+            differences.append(threshold_in_frames + 10)
+            large_dif += 1
 
 # print(count)
 # print(count_right)
-print("Metric 1 is {}".format(1 - mean(errors)))
-print("Metric 2 is {}".format(mean(scores)))
-print("Metric 3 is {}".format(mean(differences)))
+print(f"Metric 1 is {1 - mean(errors)}")
+print(f"Metric 2 is {mean(scores)}")
+print(f"Metric 3 is {mean(differences)}")
 
-print("Segments with diff > 0.3s: {}".format(large_dif/(small_dif + large_dif)))
-print("How many sentences have 1 or more pauses: {}".format(one_pause_or_more))
+print(f"Segments with diff > 0.3s: {large_dif / (small_dif + large_dif)}")
+print(f"How many sentences have 1 or more pauses: {one_pause_or_more}")
 
-print("Predicted wrong number of pauses in {} out of {} sentences".format(count, count + count_right))
+print(
+    f"Predicted wrong number of pauses in {count} out of {count + count_right} sentences"
+)

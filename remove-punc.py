@@ -28,6 +28,6 @@ with open(os.path.join(path, file)) as f:
         line_new = re.sub(r"[\.,\?:;!\"\(\)]", "", line)
         lines_nopunc.append(line_new)
 
-with open(os.path.join(path, file + '.no-punc'), 'w') as the_file:
+with open(os.path.join(path, f'{file}.no-punc'), 'w') as the_file:
     for line in lines_nopunc:
-        the_file.write('{}'.format(line))
+        the_file.write(f'{line}')

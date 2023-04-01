@@ -32,7 +32,7 @@ parser.add_argument("--output", "-o",
 args = parser.parse_args()
 if args.output is None:
     # Set default output path
-    args.output = os.path.join(args.data_dir, args.subset + '.json_input')
+    args.output = os.path.join(args.data_dir, f'{args.subset}.json_input')
 
 # Now getting segments directly so this function is unnecessary
 # def get_segment_durations(segment_durations_remaining_line: List[str]) -> List[int]:
@@ -52,17 +52,13 @@ if args.reinsert_eow:
 else:
     factor_dir = 'multi_factored'
 
-with open(os.path.join(args.data_dir, args.subset+'.de')) as f_src, \
-     open(os.path.join(args.data_dir, 'multi_factored', args.subset+'.en.text')) as f_trg, \
-     open(os.path.join(args.data_dir, args.subset+'.segments')) as f_segs, \
-     open(args.output, 'w') as f_out:
-    f_factors = []
-    for f in FACTOR_TYPES:
-        f_factors.append(open(os.path.join(args.data_dir, factor_dir, args.subset+'.en.' + f)))
-
+with (open(os.path.join(args.data_dir, f'{args.subset}.de')) as f_src, open(os.path.join(args.data_dir, 'multi_factored', f'{args.subset}.en.text')) as f_trg, open(os.path.join(args.data_dir, f'{args.subset}.segments')) as f_segs, open(args.output, 'w') as f_out):
+    f_factors = [
+        open(os.path.join(args.data_dir, factor_dir, f'{args.subset}.en.{f}'))
+        for f in FACTOR_TYPES
+    ]
     for src_line, trg_text, segments, *trg_factors in zip(f_src, f_trg, f_segs, *f_factors):
-        line_dict = dict()
-        line_dict['text'] = src_line.strip()
+        line_dict = {'text': src_line.strip()}
         if args.remove_src_segments:
             line_dict['text'] = line_dict['text'].split(SRC_SEGMENT_DELIMITER)[0].rstrip()
         line_dict['target_prefix'] = TEXT_PAD_TOKEN

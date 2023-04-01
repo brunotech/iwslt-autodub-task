@@ -36,7 +36,7 @@ class FactorFileManager:
     Context Manager to neatly manage all the factor output file handles
     """
     def __init__(self, prefix, allow_overwrite=False):
-        self.handles = dict()
+        self.handles = {}
         self.prefix = prefix
         self.overwrite = allow_overwrite
 
@@ -48,7 +48,7 @@ class FactorFileManager:
             self.handles[f] = open(output_path, 'w')
             logging.info(f"Writing {f} factors to {output_path}")
 
-        text_output_path = self.prefix + 'text'
+        text_output_path = f'{self.prefix}text'
         if os.path.exists(text_output_path) and not self.overwrite:
             raise FileExistsError(f"Factor file {text_output_path} already exists. Rerun with --allow-overwrite if you're sure you want to overwrite.")
         self.handles['text'] = open(text_output_path, 'w')
@@ -60,9 +60,7 @@ class FactorFileManager:
             fh.close()
 
 def calculate_factors(line, npause, segments, pad_token, no_shift=False, eow_factor=False):
-    factors = dict()
-    for f in FACTOR_TYPES:
-        factors[f] = []
+    factors = {f: [] for f in FACTOR_TYPES}
     text = []
 
     if not no_shift:

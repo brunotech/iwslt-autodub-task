@@ -13,9 +13,7 @@ parser.add_argument("--reinsert-eow", action='store_true',
                     help="For models with EOW factors, reinsert the <eow> tags into the output")
 args = parser.parse_args()
 
-with open(args.output_file) as f_in, \
-     open(args.output_file + '.phonemes', 'w') as out_txt, \
-     open(args.output_file + '.durations', 'w') as out_dur:
+with (open(args.output_file) as f_in, open(f'{args.output_file}.phonemes', 'w') as out_txt, open(f'{args.output_file}.durations', 'w') as out_dur):
     for line in f_in:
         line = line.strip().split(' ')
         curr_txt = []

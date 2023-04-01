@@ -12,8 +12,7 @@ PAUSE = '[pause]'
 EOW = '<eow>'
 SHIFT = '<shift>'
 
-with open(args.output_file) as f_in, \
-     open(args.output_file + '.altformat', 'w') as f_out:
+with (open(args.output_file) as f_in, open(f'{args.output_file}.altformat', 'w') as f_out):
     for line in f_in:
         line = line.strip().split()
         new_line = []
@@ -22,7 +21,7 @@ with open(args.output_file) as f_in, \
             if token[0] == SHIFT:
                 continue
             new_line.append(token[0])
-            if token[0] != PAUSE and token[0] != EOW:
+            if token[0] not in [PAUSE, EOW]:
                 if token[1].isnumeric() or not args.zero_non_numeric:
                     new_line.append(token[1])
                 else:

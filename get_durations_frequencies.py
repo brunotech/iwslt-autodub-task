@@ -37,8 +37,8 @@ if not os.path.exists(durations_path):
 
     for file in os.listdir(data_path):
         name = file.split(".")[0]
-        if os.path.isfile(os.path.join(data_path, name + ".json")):
-            data = json.load(open(os.path.join(data_path, name + ".json")))
+        if os.path.isfile(os.path.join(data_path, f"{name}.json")):
+            data = json.load(open(os.path.join(data_path, f"{name}.json")))
         else:
             #print(file, "ignored")
             continue
@@ -53,6 +53,8 @@ if not os.path.exists(durations_path):
 
     with open(durations_path, 'wb') as f:
         pickle.dump(duration_freq, f)
-        print("Wrote durations to {}".format(durations_path))
+        print(f"Wrote durations to {durations_path}")
 else:
-    print("The dictionary of speech durations has already been computed and stored in {}".format(durations_path))
+    print(
+        f"The dictionary of speech durations has already been computed and stored in {durations_path}"
+    )
